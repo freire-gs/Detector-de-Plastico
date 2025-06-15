@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Detector de Plásticos</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Detector de Plásticos</h1>
+  <input type="file" id="imageUpload" accept="image/*">
+  <br/>
+  <img id="inputImage" src="" alt="Nenhuma imagem selecionada" width="224" height="224">
+  <br/>
+  <button id="predictButton">Classificar Plástico</button>
+  <br/>
+  <div id="result"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  
+  <script>
+    let model;
+
+    async function loadModel() {
+      try {
+        model = await tf.loadLayersModel('model.json');
+        console.log("Modelo carregado com sucesso!");
+      } catch (error) {
+        console.error("Erro ao carregar o modelo:", error);
+      }
+    }
+    loadModel();
+
+    document.getElementById("imageUpload").addEventListener("change", event => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const imgElement = document.getElementById("inputImage");
+        imgElement.src = reader.result;
+      };
+      reader.readAsDataURL(event.target.files[0]);
+    });
+
+    function preprocessImage(imageElement) {
+      let tensor = tf.browser.fromPixels(imageElement)
+          .resizeNearestNeighbor([224, 224])
+          .toFloat();
+
+      tensor = tensor.div(tf.scalar(255));
+      
+      return tensor.expandDims();
+    }
+
+
+    async function predict() {
+        if (!model) {
+            alert("Modelo não carregado ainda!");
+        return;
+        }
+  
+        const imgElement = document.getElementById("inputImage");
+
+        if (!imgElement.src || imgElement.src.indexOf("data:") !== 0) {
+            alert("Por favor, selecione uma imagem primeiro.");
+        return;
+        }
+    
+        const tensor = preprocessImage(imgElement);
+
+        const prediction = await model.predict(tensor).data();
+        console.log("Predição:", prediction);
+
+        const classes = ["PET", "HDPE", "PVC", "LDPE", "PP", "PS"];
+        const maxIndex = prediction.indexOf(Math.max(...prediction));
+        const resultado = classes[maxIndex];
+
+        document.getElementById("result").innerText = "Tipo de plástico: " + resultado;
+    }
+
+
+    document.getElementById("predictButton").addEventListener("click", predict);
+  </script>
+  <style>
+    body, div{
+        justify-self: center;
+    }
+    input, img, button, div{
+        margin: 10px;
+        align-self: center;
+        width: 280px;
+    }
+  </style>
+</body>
+</html>
